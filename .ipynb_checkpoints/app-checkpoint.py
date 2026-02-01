@@ -116,17 +116,23 @@ coef_df = pd.DataFrame({
 # =========================================================
 if section == "Project Overview":
     st.title("💳 CreditWise – Loan Approval Prediction System")
+
     st.markdown("""
-    **Problem Statement:**  
-    Manual loan approval systems are slow, inconsistent, and biased.
+    ### 🔍 Problem Statement
+    Loan approval is a high-stakes decision in banking where incorrect approvals
+    lead to financial losses and incorrect rejections lead to loss of genuine customers.
+    Manual evaluation processes are slow, inconsistent, and prone to bias.
 
-    **Goals:**  
-    - Automate loan approval decisions  
-    - Reduce default risk  
-    - Improve consistency and transparency  
+    ### 🎯 Project Goals
+    - Automate loan approval using Machine Learning
+    - Reduce default risk by prioritizing precision
+    - Analyze financial and demographic attributes of applicants
+    - Build an interpretable and end-to-end ML system
 
-    **Pipeline:**  
-    Data Cleaning → EDA → Encoding → Modeling → Prediction → Explanation
+    ### 🧠 End-to-End Pipeline
+    Data Collection → Data Cleaning → Exploratory Data Analysis →  
+    Encoding & Scaling → Model Training → Feature Engineering →  
+    Model Comparison → Prediction with Explanation
     """)
 
 # =========================================================
@@ -135,13 +141,34 @@ if section == "Project Overview":
 elif section == "Dataset Overview":
     st.title("📂 Dataset Overview")
     st.dataframe(df.head())
+
+    st.subheader("Missing Values Analysis")
+    st.markdown("""
+    This table shows the count of missing values in each column.
+    Numerical features are later filled using **mean imputation**,
+    while categorical features are filled using **mode imputation**.
+    """)
     st.dataframe(df.isnull().sum())
 
 # =========================================================
 # EDA
 # =========================================================
 elif section == "Exploratory Data Analysis":
-    st.title("📊 Exploratory Data Analysis")
+    st.title("📊 Exploratory Data Analysis (EDA)")
+
+    st.markdown("""
+    Exploratory Data Analysis helps in understanding:
+    - Class imbalance
+    - Distribution of income and financial attributes
+    - Differences between approved and rejected loans
+    """)
+
+    st.subheader("Loan Approval Distribution (Pie Chart)")
+    st.markdown("""
+    This pie chart shows the proportion of approved vs rejected loans.
+    It highlights class imbalance, which is important because imbalanced data
+    can bias models towards the majority class.
+    """)
 
     fig, ax = plt.subplots()
     df["Loan_Approved"].value_counts().plot.pie(
@@ -152,9 +179,28 @@ elif section == "Exploratory Data Analysis":
     ax.set_ylabel("")
     st.pyplot(fig)
 
+    st.subheader("Income Distribution (Histograms)")
+    st.markdown("""
+    These histograms show how applicant and co-applicant incomes are distributed.
+    They help identify skewness, income concentration, and outliers.
+    """)
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 4))
     sns.histplot(df, x="Applicant_Income", bins=20, ax=ax[0])
     sns.histplot(df, x="Coapplicant_Income", bins=20, ax=ax[1])
+    st.pyplot(fig)
+
+    st.subheader("Financial Features vs Loan Approval (Box Plots)")
+    st.markdown("""
+    Box plots compare financial attributes across approved and rejected loans.
+    They help identify which features show clear separation between classes.
+    """)
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+    sns.boxplot(ax=axes[0, 0], data=df, x="Loan_Approved", y="Applicant_Income")
+    sns.boxplot(ax=axes[0, 1], data=df, x="Loan_Approved", y="Credit_Score")
+    sns.boxplot(ax=axes[1, 0], data=df, x="Loan_Approved", y="DTI_Ratio")
+    sns.boxplot(ax=axes[1, 1], data=df, x="Loan_Approved", y="Savings")
     st.pyplot(fig)
 
 # =========================================================
@@ -162,15 +208,41 @@ elif section == "Exploratory Data Analysis":
 # =========================================================
 elif section == "Correlation Heatmap":
     st.title("🔥 Correlation Heatmap")
+
+    st.markdown("""
+    The correlation heatmap shows the linear relationship between numerical features.
+    Values closer to +1 indicate strong positive correlation, while values near -1
+    indicate strong negative correlation.
+
+    This helps in:
+    - Identifying important predictors
+    - Detecting multicollinearity
+    - Understanding feature influence on loan approval
+    """)
+
     fig, ax = plt.subplots(figsize=(14, 7))
     sns.heatmap(df_proc.corr(), cmap="coolwarm", annot=False)
     st.pyplot(fig)
+
+    st.subheader("Correlation with Loan Approval")
+    st.markdown("""
+    This table ranks features based on their correlation with the target variable.
+    Features with higher absolute correlation values tend to have more influence
+    on the model's decision.
+    """)
+    st.dataframe(df_proc.corr()["Loan_Approved"].sort_values(ascending=False))
 
 # =========================================================
 # MODEL TRAINING
 # =========================================================
 elif section == "Model Training & Evaluation":
     st.title("🤖 Model Training & Evaluation")
+
+    st.markdown("""
+    Multiple classification models are trained and evaluated.
+    Precision is emphasized because false positives (approving risky applicants)
+    are more costly in loan approval systems.
+    """)
 
     X = df_proc.drop("Loan_Approved", axis=1)
     y = df_proc["Loan_Approved"]
@@ -198,7 +270,7 @@ elif section == "Model Training & Evaluation":
             "Accuracy": accuracy_score(y_test, y_pred),
             "Precision": precision_score(y_test, y_pred),
             "Recall": recall_score(y_test, y_pred),
-            "F1": f1_score(y_test, y_pred)
+            "F1 Score": f1_score(y_test, y_pred)
         })
 
     st.dataframe(pd.DataFrame(rows))
@@ -209,9 +281,22 @@ elif section == "Model Training & Evaluation":
 elif section == "Feature Engineering & Comparison":
     st.title("🧠 Feature Engineering Impact")
 
+    st.markdown("""
+    Feature engineering introduces non-linear representations of existing features.
+    Squared terms help the model capture non-linear relationships between
+    financial risk and loan approval.
+    """)
+
     df_fe = df_proc.copy()
     df_fe["DTI_Ratio_sq"] = df_fe["DTI_Ratio"] ** 2
     df_fe["Credit_Score_sq"] = df_fe["Credit_Score"] ** 2
+
+    st.markdown("""
+    **What changed after feature engineering:**
+    - Higher sensitivity to extreme DTI values
+    - Stronger emphasis on very high or very low credit scores
+    - Improved separation between risky and safe applicants
+    """)
 
     X = df_fe.drop(["Loan_Approved", "DTI_Ratio", "Credit_Score"], axis=1)
     y = df_fe["Loan_Approved"]
@@ -236,7 +321,7 @@ elif section == "Feature Engineering & Comparison":
 # USER INPUT + EXPLANATION
 # =========================================================
 elif section == "Loan Approval Prediction (User Input)":
-    st.title("🧾 Loan Approval Prediction")
+    st.title("🧾 Loan Approval Prediction with Explanation")
 
     with st.form("loan_form"):
         age = st.number_input("Age", 18, 70, 30)
@@ -276,7 +361,6 @@ elif section == "Loan Approval Prediction (User Input)":
         }])
 
         input_df["Education_Level"] = edu_encoder.transform(input_df["Education_Level"])
-
         encoded_input = ohe.transform(input_df[ohe_cols])
         encoded_input_df = pd.DataFrame(
             encoded_input,
@@ -299,12 +383,12 @@ elif section == "Loan Approval Prediction (User Input)":
         else:
             st.error(f"❌ Loan Rejected (Confidence: {1 - prob:.2f})")
 
-        st.subheader("📌 Key Factors Influencing Decision")
-        contribution = coef_df.copy()
-        contribution["Impact"] = contribution["Coefficient"] * input_scaled[0]
-        contribution = contribution.sort_values(
-            by="Impact",
+        st.subheader("📌 Decision Explanation")
+        contrib = coef_df.copy()
+        contrib["Contribution"] = contrib["Coefficient"] * input_scaled[0]
+        contrib = contrib.sort_values(
+            by="Contribution",
             ascending=(pred == 0)
-        ).head(5)
+        ).head(6)
 
-        st.dataframe(contribution[["Feature", "Impact"]])
+        st.dataframe(contrib[["Feature", "Contribution"]])
