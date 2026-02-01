@@ -320,75 +320,75 @@ elif section == "Feature Engineering & Comparison":
 # =========================================================
 # USER INPUT + EXPLANATION
 # =========================================================
-elif section == "Loan Approval Prediction (User Input)":
-    st.title("🧾 Loan Approval Prediction with Explanation")
+# elif section == "Loan Approval Prediction (User Input)":
+#     st.title("🧾 Loan Approval Prediction with Explanation")
 
-    with st.form("loan_form"):
-        age = st.number_input("Age", 18, 70, 30)
-        applicant_income = st.number_input("Applicant Income", 1000, 200000, 50000)
-        coapp_income = st.number_input("Coapplicant Income", 0, 100000, 0)
-        loan_amount = st.number_input("Loan Amount", 1000, 500000, 150000)
-        credit_score = st.number_input("Credit Score", 300, 900, 700)
-        dti_ratio = st.slider("DTI Ratio", 0.0, 1.0, 0.3)
-        savings = st.number_input("Savings", 0, 1000000, 20000)
+#     with st.form("loan_form"):
+#         age = st.number_input("Age", 18, 70, 30)
+#         applicant_income = st.number_input("Applicant Income", 1000, 200000, 50000)
+#         coapp_income = st.number_input("Coapplicant Income", 0, 100000, 0)
+#         loan_amount = st.number_input("Loan Amount", 1000, 500000, 150000)
+#         credit_score = st.number_input("Credit Score", 300, 900, 700)
+#         dti_ratio = st.slider("DTI Ratio", 0.0, 1.0, 0.3)
+#         savings = st.number_input("Savings", 0, 1000000, 20000)
 
-        education = st.selectbox("Education Level", edu_encoder.classes_)
-        gender = st.selectbox("Gender", ["Male", "Female"])
-        marital = st.selectbox("Marital Status", ["Single", "Married"])
-        employment = st.selectbox("Employment Status", ["Salaried", "Self-Employed"])
-        property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
-        loan_purpose = st.selectbox("Loan Purpose", ["Home", "Education", "Business"])
-        employer_category = st.selectbox("Employer Category", ["Private", "Government"])
+#         education = st.selectbox("Education Level", edu_encoder.classes_)
+#         gender = st.selectbox("Gender", ["Male", "Female"])
+#         marital = st.selectbox("Marital Status", ["Single", "Married"])
+#         employment = st.selectbox("Employment Status", ["Salaried", "Self-Employed"])
+#         property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
+#         loan_purpose = st.selectbox("Loan Purpose", ["Home", "Education", "Business"])
+#         employer_category = st.selectbox("Employer Category", ["Private", "Government"])
 
-        submit = st.form_submit_button("Predict")
+#         submit = st.form_submit_button("Predict")
 
-    if submit:
-        input_df = pd.DataFrame([{
-            "Age": age,
-            "Applicant_Income": applicant_income,
-            "Coapplicant_Income": coapp_income,
-            "Loan_Amount": loan_amount,
-            "Credit_Score": credit_score,
-            "DTI_Ratio": dti_ratio,
-            "Savings": savings,
-            "Education_Level": education,
-            "Gender": gender,
-            "Marital_Status": marital,
-            "Employment_Status": employment,
-            "Property_Area": property_area,
-            "Loan_Purpose": loan_purpose,
-            "Employer_Category": employer_category
-        }])
+#     if submit:
+#         input_df = pd.DataFrame([{
+#             "Age": age,
+#             "Applicant_Income": applicant_income,
+#             "Coapplicant_Income": coapp_income,
+#             "Loan_Amount": loan_amount,
+#             "Credit_Score": credit_score,
+#             "DTI_Ratio": dti_ratio,
+#             "Savings": savings,
+#             "Education_Level": education,
+#             "Gender": gender,
+#             "Marital_Status": marital,
+#             "Employment_Status": employment,
+#             "Property_Area": property_area,
+#             "Loan_Purpose": loan_purpose,
+#             "Employer_Category": employer_category
+#         }])
 
-        input_df["Education_Level"] = edu_encoder.transform(input_df["Education_Level"])
-        encoded_input = ohe.transform(input_df[ohe_cols])
-        encoded_input_df = pd.DataFrame(
-            encoded_input,
-            columns=ohe.get_feature_names_out(ohe_cols)
-        )
+#         input_df["Education_Level"] = edu_encoder.transform(input_df["Education_Level"])
+#         encoded_input = ohe.transform(input_df[ohe_cols])
+#         encoded_input_df = pd.DataFrame(
+#             encoded_input,
+#             columns=ohe.get_feature_names_out(ohe_cols)
+#         )
 
-        input_df = pd.concat(
-            [input_df.drop(columns=ohe_cols), encoded_input_df],
-            axis=1
-        )
+#         input_df = pd.concat(
+#             [input_df.drop(columns=ohe_cols), encoded_input_df],
+#             axis=1
+#         )
 
-        input_df = input_df.reindex(columns=feature_order, fill_value=0)
+#         input_df = input_df.reindex(columns=feature_order, fill_value=0)
 
-        input_scaled = scaler_final.transform(input_df)
-        pred = final_model.predict(input_scaled)[0]
-        prob = final_model.predict_proba(input_scaled)[0][1]
+#         input_scaled = scaler_final.transform(input_df)
+#         pred = final_model.predict(input_scaled)[0]
+#         prob = final_model.predict_proba(input_scaled)[0][1]
 
-        if pred == 1:
-            st.success(f"✅ Loan Approved (Confidence: {prob:.2f})")
-        else:
-            st.error(f"❌ Loan Rejected (Confidence: {1 - prob:.2f})")
+#         if pred == 1:
+#             st.success(f"✅ Loan Approved (Confidence: {prob:.2f})")
+#         else:
+#             st.error(f"❌ Loan Rejected (Confidence: {1 - prob:.2f})")
 
-        st.subheader("📌 Decision Explanation")
-        contrib = coef_df.copy()
-        contrib["Contribution"] = contrib["Coefficient"] * input_scaled[0]
-        contrib = contrib.sort_values(
-            by="Contribution",
-            ascending=(pred == 0)
-        ).head(6)
+#         st.subheader("📌 Decision Explanation")
+#         contrib = coef_df.copy()
+#         contrib["Contribution"] = contrib["Coefficient"] * input_scaled[0]
+#         contrib = contrib.sort_values(
+#             by="Contribution",
+#             ascending=(pred == 0)
+#         ).head(6)
 
-        st.dataframe(contrib[["Feature", "Contribution"]])
+#         st.dataframe(contrib[["Feature", "Contribution"]])
