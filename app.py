@@ -161,6 +161,7 @@ if y_raw.dtype == "object":
 
     y = y_norm.map({
         "yes": 1,
+        "Yes": 1,
         "y": 1,
         "approved": 1,
         "Approved": 1,
@@ -169,6 +170,7 @@ if y_raw.dtype == "object":
         "1": 1,
 
         "no": 0,
+        "No": 0,
         "n": 0,
         "rejected": 0,
         "Rejected": 0,
