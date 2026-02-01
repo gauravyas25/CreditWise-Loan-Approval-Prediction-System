@@ -1,43 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.19.1
-#   kernelspec:
-#     display_name: Python 3 (ipykernel)
-#     language: python
-#     name: python3
-# ---
-
-# %% [markdown]
-# # **CreditWise – Loan Approval Prediction System**
-#
-# ## Problem Statement
-# - Loan approval is a critical decision for financial institutions.
-# - Manual loan approval processes are:
-#     * Time-consuming
-#     * Prone to human bias
-#     * Inconsistent across applicants
-# - Banks need a data-driven system to:
-#     * Analyze applicant details
-#     * Predict whether a loan should be approved or not
-#     * Reduce default risk
-#
-# ## Main Aim of the Project
-# 1. Cleans and preprocesses real-world financial data
-# 2. Performs Exploratory Data Analysis (EDA) to understand patterns
-# 3. Converts categorical data into machine-readable form
-# 4. Analyzes feature relationships using Correlation Heatmap
-# 5. Trains multiple ML models
-# 6. Compares model performance
-# 7. Improves results using Feature Engineering
-#
-#
-
-# %%
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -105,18 +65,24 @@ df_proc = df.copy()
 categorical_cols = df_proc.select_dtypes(include="object").columns
 numerical_cols = df_proc.select_dtypes(include="number").columns
 
+# Imputation
 num_imp = SimpleImputer(strategy="mean")
 df_proc[numerical_cols] = num_imp.fit_transform(df_proc[numerical_cols])
 
 cat_imp = SimpleImputer(strategy="most_frequent")
 df_proc[categorical_cols] = cat_imp.fit_transform(df_proc[categorical_cols])
 
+# Drop ID
 df_proc.drop("Applicant_ID", axis=1, inplace=True)
 
-le = LabelEncoder()
-df_proc["Education_Level"] = le.fit_transform(df_proc["Education_Level"])
-df_proc["Loan_Approved"] = le.fit_transform(df_proc["Loan_Approved"])
+# ✅ SEPARATE ENCODERS (CRITICAL FIX)
+edu_encoder = LabelEncoder()
+target_encoder = LabelEncoder()
 
+df_proc["Education_Level"] = edu_encoder.fit_transform(df_proc["Education_Level"])
+df_proc["Loan_Approved"] = target_encoder.fit_transform(df_proc["Loan_Approved"])
+
+# One-Hot Encoding
 ohe_cols = [
     "Employment_Status",
     "Marital_Status",
@@ -141,7 +107,7 @@ df_proc = pd.concat(
 )
 
 # =========================================================
-# FINAL MODEL (USED FOR PREDICTION)
+# FINAL MODEL (FOR PREDICTION)
 # =========================================================
 X_final = df_proc.drop("Loan_Approved", axis=1)
 y_final = df_proc["Loan_Approved"]
@@ -160,25 +126,25 @@ if section == "Project Overview":
 
     st.markdown("""
     ### 🔍 Problem Statement
-    Loan approval is a critical and high-risk decision for financial institutions.
-    Manual evaluation processes are slow, inconsistent, and prone to bias.
-    Approving risky applicants leads to financial loss, while rejecting genuine
-    applicants impacts customer trust and revenue.
+    Loan approval is a high-risk decision in banking.  
+    Manual evaluation is slow, biased, and inconsistent.
+
+    Approving risky applicants causes **financial losses**,  
+    while rejecting genuine applicants reduces **customer trust**.
 
     ### 🎯 Project Goals
-    - Automate loan approval decisions using Machine Learning
+    - Automate loan approval using Machine Learning
     - Reduce default risk by prioritizing **precision**
-    - Analyze applicant financial and demographic data
-    - Build an end-to-end, production-ready ML system
+    - Analyze applicant financial and demographic attributes
+    - Build a complete end-to-end ML system
 
-    ### 🧠 What This System Does
-    - Cleans and preprocesses real-world loan data
-    - Performs Exploratory Data Analysis (EDA)
-    - Encodes categorical variables correctly
-    - Analyzes correlations between features
-    - Trains and compares multiple ML models
-    - Improves performance using feature engineering
-    - Allows real-time prediction using user input
+    ### 🧠 System Capabilities
+    - Data cleaning & preprocessing
+    - Exploratory Data Analysis (EDA)
+    - Feature encoding & correlation analysis
+    - Multiple ML model training & comparison
+    - Feature engineering
+    - Real-time loan approval prediction
     """)
 
 # =========================================================
@@ -317,7 +283,7 @@ elif section == "Loan Approval Prediction (User Input)":
         dti_ratio = st.slider("DTI Ratio", 0.0, 1.0, 0.3)
         savings = st.number_input("Savings", 0, 1000000, 20000)
 
-        education = st.selectbox("Education Level", ["Graduate", "Not Graduate"])
+        education = st.selectbox("Education Level", edu_encoder.classes_)
         gender = st.selectbox("Gender", ["Male", "Female"])
         marital = st.selectbox("Marital Status", ["Single", "Married"])
         employment = st.selectbox("Employment Status", ["Salaried", "Self-Employed"])
@@ -325,10 +291,10 @@ elif section == "Loan Approval Prediction (User Input)":
         loan_purpose = st.selectbox("Loan Purpose", ["Home", "Education", "Business"])
         employer_category = st.selectbox("Employer Category", ["Private", "Government"])
 
-        submit = st.form_submit_button("Predict")
+        submit = st.form_submit_button("Predict Loan Approval")
 
     if submit:
-        input_data = pd.DataFrame([{
+        input_df = pd.DataFrame([{
             "Age": age,
             "Applicant_Income": applicant_income,
             "Coapplicant_Income": coapp_income,
@@ -345,24 +311,26 @@ elif section == "Loan Approval Prediction (User Input)":
             "Employer_Category": employer_category
         }])
 
-        input_data["Education_Level"] = le.transform(input_data["Education_Level"])
-        encoded_input = ohe.transform(input_data[ohe_cols])
+        input_df["Education_Level"] = edu_encoder.transform(
+            input_df["Education_Level"]
+        )
 
+        encoded_input = ohe.transform(input_df[ohe_cols])
         encoded_input_df = pd.DataFrame(
             encoded_input,
             columns=ohe.get_feature_names_out(ohe_cols)
         )
 
-        input_data = pd.concat(
-            [input_data.drop(columns=ohe_cols), encoded_input_df],
+        input_df = pd.concat(
+            [input_df.drop(columns=ohe_cols), encoded_input_df],
             axis=1
         )
 
-        input_scaled = scaler_final.transform(input_data)
-        prediction = final_model.predict(input_scaled)[0]
+        input_scaled = scaler_final.transform(input_df)
+        pred = final_model.predict(input_scaled)[0]
         prob = final_model.predict_proba(input_scaled)[0][1]
 
-        if prediction == 1:
+        if pred == 1:
             st.success(f"✅ Loan Approved (Confidence: {prob:.2f})")
         else:
-            st.error(f"❌ Loan Rejected (Confidence: {1-prob:.2f})")
+            st.error(f"❌ Loan Rejected (Confidence: {1 - prob:.2f})")
