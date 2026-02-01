@@ -140,7 +140,30 @@ st.pyplot(fig)
 # TRAIN–TEST SPLIT
 # =========================================================
 X = df[FEATURE_COLUMNS].copy()
-y = df[TARGET_COLUMN].astype(int)
+# =========================================================
+# TARGET ENCODING (ROBUST & SAFE)
+# =========================================================
+y_raw = df[TARGET_COLUMN]
+
+if y_raw.dtype == "object":
+    y = y_raw.map({
+        "Yes": 1,
+        "No": 0,
+        "Y": 1,
+        "N": 0,
+        True: 1,
+        False: 0
+    })
+else:
+    y = y_raw
+
+# Safety check
+if y.isna().any():
+    st.error("❌ Target column contains unmapped values.")
+    st.stop()
+
+y = y.astype(int)
+
 
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
