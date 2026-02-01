@@ -1,330 +1,221 @@
-# ============================================================
-# CreditWise: Loan Approval Prediction System
-# Author: Gaurav Vyas
-# ============================================================
-
 import streamlit as st
-import numpy as np
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    confusion_matrix,
-    classification_report
-)
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-# ---------------------- PAGE CONFIG -------------------------
+# -----------------------------------
+# PAGE CONFIG
+# -----------------------------------
 st.set_page_config(
-    page_title="CreditWise | Loan Approval Prediction",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="CreditWise Loan Approval System",
+    layout="wide"
 )
 
-# ---------------------- TITLE -------------------------------
-st.title("💳 CreditWise: Loan Approval Prediction System")
+# -----------------------------------
+# TITLE
+# -----------------------------------
+st.title("🏦 CreditWise – Loan Approval Prediction System")
 
-st.markdown("""
-**CreditWise** is a machine learning–based decision support system designed to
-predict whether a loan application will be **approved or rejected** based on
-applicant financial and demographic attributes.
-""")
-
-# ============================================================
+# -----------------------------------
 # PROJECT INFORMATION
-# ============================================================
-
-with st.expander("📘 Project Overview", expanded=True):
+# -----------------------------------
+with st.expander("📌 Project Overview", expanded=True):
     st.markdown("""
-### 🔍 Problem Statement
-Financial institutions face significant risk when approving loans.
-Manual evaluation is time-consuming, error-prone, and inconsistent.
-There is a need for an **automated, data-driven loan approval system**
-that ensures **accuracy, fairness, and risk minimization**.
+    **Project Name:** CreditWise – Loan Approval System  
 
-### 🎯 Aim
-To build a **machine learning classification system** that predicts
-loan approval status using historical applicant data and evaluates
-model performance using industry-relevant metrics.
+    **Problem Statement:**  
+    Financial institutions receive thousands of loan applications daily.  
+    Manual verification is time-consuming, error-prone, and inconsistent.  
+    This project aims to automate loan approval decisions using Machine Learning.
 
-### 🧠 Models Used
-- **Naive Bayes (GaussianNB)**
-- **Logistic Regression**
+    **Aim:**  
+    To predict whether a loan application should be **Approved (Y)** or **Rejected (N)** based on applicant details.
 
-### 📊 Performance Evaluation Metrics
-- Accuracy
-- Precision (most critical)
-- Recall
-- F1-Score
-- Confusion Matrix
+    **Target Variable:**  
+    `Loan_Status`
 
-Precision is prioritized because **false approvals (bad loans)** are
-costlier than false rejections.
-""")
+    **Tech Stack:**  
+    - Python  
+    - Pandas, NumPy  
+    - Matplotlib, Seaborn  
+    - Scikit-learn  
+    - Streamlit
+    """)
 
-# ============================================================
-# DATA LOADING
-# ============================================================
+# -----------------------------------
+# LOAD DATA
+# -----------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("loan_data.csv")
 
-st.header("📂 Dataset Loading & Preview")
+df = load_data()
 
-uploaded_file = st.file_uploader(
-    "Upload Loan Dataset (CSV)",
-    type=["csv"]
+# -----------------------------------
+# DATA PREVIEW
+# -----------------------------------
+st.subheader("📄 Dataset Preview")
+st.dataframe(df.head())
+
+# -----------------------------------
+# EDA SECTION
+# -----------------------------------
+st.subheader("📊 Exploratory Data Analysis (EDA)")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("**Loan Status Distribution**")
+    fig, ax = plt.subplots()
+    df["Loan_Status"].value_counts().plot(kind="bar", ax=ax)
+    ax.set_xlabel("Loan Status")
+    ax.set_ylabel("Count")
+    st.pyplot(fig)
+
+with col2:
+    st.markdown("**Education Level Distribution**")
+    fig, ax = plt.subplots()
+    df["Education"].value_counts().plot(kind="bar", ax=ax)
+    ax.set_xlabel("Education")
+    ax.set_ylabel("Count")
+    st.pyplot(fig)
+
+# Histogram
+st.markdown("**Applicant Income Distribution**")
+fig, ax = plt.subplots()
+sns.histplot(df["ApplicantIncome"], kde=True, ax=ax)
+st.pyplot(fig)
+
+# Boxplot
+st.markdown("**Applicant Income vs Loan Status**")
+fig, ax = plt.subplots()
+sns.boxplot(x="Loan_Status", y="ApplicantIncome", data=df, ax=ax)
+st.pyplot(fig)
+
+# Correlation Heatmap
+st.markdown("**Correlation Heatmap**")
+fig, ax = plt.subplots(figsize=(10, 6))
+sns.heatmap(df.select_dtypes(include=np.number).corr(), annot=True, cmap="coolwarm", ax=ax)
+st.pyplot(fig)
+
+# -----------------------------------
+# DATA PREPROCESSING
+# -----------------------------------
+data = df.copy()
+
+label_encoders = {}
+for col in data.select_dtypes(include="object").columns:
+    le = LabelEncoder()
+    data[col] = le.fit_transform(data[col])
+    label_encoders[col] = le
+
+X = data.drop("Loan_Status", axis=1)
+y = data["Loan_Status"]
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
 )
 
-if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    st.success("Dataset loaded successfully!")
+# -----------------------------------
+# MODELS
+# -----------------------------------
+models = {
+    "Logistic Regression": LogisticRegression(),
+    "Decision Tree": DecisionTreeClassifier(),
+    "Random Forest": RandomForestClassifier(),
+    "Naive Bayes": GaussianNB()
+}
 
-    st.subheader("Dataset Preview")
-    st.dataframe(df.head())
+results = {}
 
-    # ========================================================
-    # DATA PREPROCESSING
-    # ========================================================
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    results[name] = {
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred),
+        "Recall": recall_score(y_test, y_pred),
+        "F1 Score": f1_score(y_test, y_pred)
+    }
 
-    st.header("🧹 Data Preprocessing")
+# -----------------------------------
+# MODEL COMPARISON
+# -----------------------------------
+st.subheader("⚖️ Model Performance Comparison")
 
-    df_processed = df.copy()
+results_df = pd.DataFrame(results).T
+st.dataframe(results_df)
 
-    label_encoders = {}
-    for col in df_processed.select_dtypes(include="object").columns:
-        le = LabelEncoder()
-        df_processed[col] = le.fit_transform(df_processed[col])
-        label_encoders[col] = le
-
-    st.write("✔ Categorical features encoded using Label Encoding")
-
-    # Target & Features
-    X = df_processed.drop("Loan_Status", axis=1)
-    y = df_processed["Loan_Status"]
-
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-
-    # Scaling
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
-
-    st.write("✔ Train-Test Split (80%-20%)")
-    st.write("✔ Feature Scaling applied")
-
-    # ========================================================
-    # EXPLORATORY DATA ANALYSIS
-    # ========================================================
-
-    st.header("📊 Exploratory Data Analysis")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Loan Status Distribution")
-        fig, ax = plt.subplots()
-        sns.countplot(x=y, ax=ax)
-        ax.set_title("Loan Approval Distribution")
-        st.pyplot(fig)
-
-    with col2:
-        st.subheader("Correlation Heatmap")
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.heatmap(
-            df_processed.corr(),
-            cmap="coolwarm",
-            annot=False,
-            ax=ax
-        )
-        ax.set_title("Feature Correlation Heatmap")
-        st.pyplot(fig)
-
-    st.markdown("""
-### 📌 Heatmap Insight
-- Strong correlation between **credit history and loan approval**
-- Weak correlation for demographic features
-- Confirms financial attributes dominate approval decisions
-""")
-
-    # ========================================================
-    # MODEL TRAINING
-    # ========================================================
-
-    st.header("🤖 Model Training & Evaluation")
-
-    # ----------------- Naive Bayes ---------------------------
-    nb_model = GaussianNB()
-    nb_model.fit(X_train, y_train)
-    y_pred_nb = nb_model.predict(X_test)
-
-    # ---------------- Logistic Regression -------------------
-    lr_model = LogisticRegression()
-    lr_model.fit(X_train, y_train)
-    y_pred_lr = lr_model.predict(X_test)
-
-    # ========================================================
-    # PERFORMANCE COMPARISON
-    # ========================================================
-
-    st.subheader("📈 Model Performance Comparison")
-
-    def evaluate_model(y_true, y_pred):
-        return {
-            "Accuracy": accuracy_score(y_true, y_pred),
-            "Precision": precision_score(y_true, y_pred),
-            "Recall": recall_score(y_true, y_pred),
-            "F1-Score": f1_score(y_true, y_pred)
-        }
-
-    results = pd.DataFrame.from_dict(
-        {
-            "Naive Bayes": evaluate_model(y_test, y_pred_nb),
-            "Logistic Regression": evaluate_model(y_test, y_pred_lr)
-        },
-        orient="index"
-    )
-
-    st.dataframe(results.style.highlight_max(axis=0))
-
-    # ========================================================
-    # CONFUSION MATRIX
-    # ========================================================
-
-    st.subheader("🧩 Confusion Matrix")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig, ax = plt.subplots()
-        sns.heatmap(
-            confusion_matrix(y_test, y_pred_nb),
-            annot=True,
-            fmt="d",
-            cmap="Blues",
-            ax=ax
-        )
-        ax.set_title("Naive Bayes Confusion Matrix")
-        st.pyplot(fig)
-
-    with col2:
-        fig, ax = plt.subplots()
-        sns.heatmap(
-            confusion_matrix(y_test, y_pred_lr),
-            annot=True,
-            fmt="d",
-            cmap="Greens",
-            ax=ax
-        )
-        ax.set_title("Logistic Regression Confusion Matrix")
-        st.pyplot(fig)
-
-    st.markdown("""
-### 🧠 Key Insight
-- **Naive Bayes** shows higher **precision**, making it safer for loan approval
-- Logistic Regression performs competitively but allows more false positives
-""")
-
-else:
-    st.warning("Please upload a CSV dataset to proceed.")
-
-
-# ============================================================
-# SIDEBAR: LOAN PREDICTION SYSTEM
-# ============================================================
-
-st.sidebar.title("🏦 Loan Approval Predictor")
-st.sidebar.markdown("""
-Fill in applicant details to predict **Loan Approval Status**  
-(Model used: **Naive Bayes – Precision Optimized**)
-""")
-
-# ----------- Sidebar Inputs ----------------
-
-gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
-married = st.sidebar.selectbox("Married", ["Yes", "No"])
-dependents = st.sidebar.selectbox("Dependents", ["0", "1", "2", "3+"])
-education = st.sidebar.selectbox("Education", ["Graduate", "Not Graduate"])
-self_employed = st.sidebar.selectbox("Self Employed", ["Yes", "No"])
-
-applicant_income = st.sidebar.number_input(
-    "Applicant Income", min_value=0, step=500
+model_choice = st.selectbox(
+    "Select Model for Prediction",
+    list(models.keys())
 )
 
-coapplicant_income = st.sidebar.number_input(
-    "Co-applicant Income", min_value=0, step=500
-)
+selected_model = models[model_choice]
 
-loan_amount = st.sidebar.number_input(
-    "Loan Amount (in thousands)", min_value=0, step=10
-)
+# -----------------------------------
+# SIDEBAR – USER INPUT
+# -----------------------------------
+st.sidebar.header("🧾 Enter Applicant Details")
 
-loan_amount_term = st.sidebar.selectbox(
-    "Loan Term (months)", [360, 180, 240, 120, 60]
-)
-
-credit_history = st.sidebar.selectbox(
-    "Credit History", [1.0, 0.0],
-    help="1.0 = Good Credit | 0.0 = Poor Credit"
-)
-
-property_area = st.sidebar.selectbox(
-    "Property Area", ["Urban", "Semiurban", "Rural"]
-)
-
-# ----------- Prediction Button ----------------
-
-if st.sidebar.button("🔍 Predict Loan Status"):
-
-    input_data = pd.DataFrame({
-        "Gender": [gender],
-        "Married": [married],
-        "Dependents": [dependents],
-        "Education": [education],
-        "Self_Employed": [self_employed],
-        "ApplicantIncome": [applicant_income],
-        "CoapplicantIncome": [coapplicant_income],
-        "LoanAmount": [loan_amount],
-        "Loan_Amount_Term": [loan_amount_term],
-        "Credit_History": [credit_history],
-        "Property_Area": [property_area]
-    })
-
-    # Apply Label Encoding
-    for col in input_data.columns:
-        if col in label_encoders:
-            input_data[col] = label_encoders[col].transform(input_data[col])
-
-    # Scaling
-    input_scaled = scaler.transform(input_data)
-
-    # Prediction
-    prediction = nb_model.predict(input_scaled)[0]
-    probability = nb_model.predict_proba(input_scaled)[0][prediction]
-
-    # ----------- Output ----------------
-    st.sidebar.markdown("---")
-
-    if prediction == 1:
-        st.sidebar.success(
-            f"✅ **Loan Approved**\n\nConfidence: **{probability:.2%}**"
-        )
+user_input = {}
+for col in df.drop("Loan_Status", axis=1).columns:
+    if df[col].dtype == "object":
+        user_input[col] = st.sidebar.selectbox(col, df[col].unique())
     else:
-        st.sidebar.error(
-            f"❌ **Loan Rejected**\n\nConfidence: **{probability:.2%}**"
-        )
+        user_input[col] = st.sidebar.number_input(col, float(df[col].min()), float(df[col].max()))
 
-    st.sidebar.markdown("""
-    ### 📌 Decision Logic
-    - Model prioritizes **Precision**
-    - Reduces risk of **bad loan approvals**
-    - Credit History has highest influence
+input_df = pd.DataFrame([user_input])
+
+for col in input_df.select_dtypes(include="object").columns:
+    input_df[col] = label_encoders[col].transform(input_df[col])
+
+input_scaled = scaler.transform(input_df)
+
+# -----------------------------------
+# PREDICTION
+# -----------------------------------
+if st.sidebar.button("🔍 Predict Loan Status"):
+    prediction = selected_model.predict(input_scaled)[0]
+    result = "Approved ✅" if prediction == 1 else "Rejected ❌"
+    st.sidebar.success(f"Loan Status: {result}")
+
+# -----------------------------------
+# EXPLANATION TAB
+# -----------------------------------
+st.subheader("🧠 Explanation (Interview-Ready)")
+
+with st.expander("Why Precision is Important?"):
+    st.markdown("""
+    Precision is crucial in loan approval systems because:
+    - False positives (approving risky loans) cause **financial loss**
+    - Banks prefer **safe approvals over mass approvals**
+    """)
+
+with st.expander("Why Multiple Models?"):
+    st.markdown("""
+    - Logistic Regression → Baseline, interpretable
+    - Decision Tree → Rule-based decisions
+    - Random Forest → Handles non-linearity & reduces overfitting
+    - Naive Bayes → Fast, probabilistic
+    """)
+
+with st.expander("Real-World Use Case"):
+    st.markdown("""
+    This system can be integrated into:
+    - Bank loan portals
+    - NBFC risk engines
+    - FinTech credit scoring pipelines
     """)
