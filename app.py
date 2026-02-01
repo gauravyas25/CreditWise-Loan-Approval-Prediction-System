@@ -47,13 +47,13 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
 # =========================================================
-# Page Configuration
+# PAGE CONFIG
 # =========================================================
 st.set_page_config(
     page_title="CreditWise – Loan Approval Prediction",
@@ -61,7 +61,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# Sidebar Navigation
+# SIDEBAR
 # =========================================================
 st.sidebar.title("📊 CreditWise Dashboard")
 
@@ -73,7 +73,8 @@ section = st.sidebar.radio(
         "Exploratory Data Analysis",
         "Correlation Heatmap",
         "Model Training & Evaluation",
-        "Feature Engineering & Comparison"
+        "Feature Engineering & Comparison",
+        "Loan Approval Prediction (User Input)"
     ]
 )
 
@@ -83,12 +84,12 @@ st.sidebar.info(
     **Domain:** Banking & Finance  
     **ML Type:** Binary Classification  
     **Models:** Logistic Regression, KNN, Naive Bayes  
-    **Metrics:** Precision, Recall, F1-Score, Accuracy  
+    **Primary Metric:** Precision  
     """
 )
 
 # =========================================================
-# Load Dataset
+# LOAD DATA
 # =========================================================
 @st.cache_data
 def load_data():
@@ -97,33 +98,32 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# DATA PREPROCESSING (DONE ONCE)
+# PREPROCESSING (ONCE)
 # =========================================================
 df_proc = df.copy()
 
 categorical_cols = df_proc.select_dtypes(include="object").columns
 numerical_cols = df_proc.select_dtypes(include="number").columns
 
-# Handle missing values
 num_imp = SimpleImputer(strategy="mean")
 df_proc[numerical_cols] = num_imp.fit_transform(df_proc[numerical_cols])
 
 cat_imp = SimpleImputer(strategy="most_frequent")
 df_proc[categorical_cols] = cat_imp.fit_transform(df_proc[categorical_cols])
 
-# Drop ID column
 df_proc.drop("Applicant_ID", axis=1, inplace=True)
 
-# Label Encoding
 le = LabelEncoder()
 df_proc["Education_Level"] = le.fit_transform(df_proc["Education_Level"])
 df_proc["Loan_Approved"] = le.fit_transform(df_proc["Loan_Approved"])
 
-# One Hot Encoding
 ohe_cols = [
-    "Employment_Status", "Marital_Status",
-    "Loan_Purpose", "Property_Area",
-    "Gender", "Employer_Category"
+    "Employment_Status",
+    "Marital_Status",
+    "Loan_Purpose",
+    "Property_Area",
+    "Gender",
+    "Employer_Category"
 ]
 
 ohe = OneHotEncoder(drop="first", sparse_output=False, handle_unknown="ignore")
@@ -141,6 +141,18 @@ df_proc = pd.concat(
 )
 
 # =========================================================
+# FINAL MODEL (USED FOR PREDICTION)
+# =========================================================
+X_final = df_proc.drop("Loan_Approved", axis=1)
+y_final = df_proc["Loan_Approved"]
+
+scaler_final = StandardScaler()
+X_final_scaled = scaler_final.fit_transform(X_final)
+
+final_model = LogisticRegression()
+final_model.fit(X_final_scaled, y_final)
+
+# =========================================================
 # PROJECT OVERVIEW
 # =========================================================
 if section == "Project Overview":
@@ -148,32 +160,25 @@ if section == "Project Overview":
 
     st.markdown("""
     ### 🔍 Problem Statement
-    Loan approval is one of the most critical decisions in the banking industry.
-    Incorrect approvals lead to **financial losses**, while incorrect rejections
-    lead to **loss of genuine customers**.
+    Loan approval is a critical and high-risk decision for financial institutions.
+    Manual evaluation processes are slow, inconsistent, and prone to bias.
+    Approving risky applicants leads to financial loss, while rejecting genuine
+    applicants impacts customer trust and revenue.
 
-    Traditional loan approval systems are:
-    - Manual and time-consuming
-    - Highly dependent on human judgment
-    - Prone to bias and inconsistency
-
-    ### 🎯 Objective of CreditWise
-    CreditWise aims to **automate and optimize** the loan approval process using
-    Machine Learning by analyzing applicant financial and demographic attributes.
+    ### 🎯 Project Goals
+    - Automate loan approval decisions using Machine Learning
+    - Reduce default risk by prioritizing **precision**
+    - Analyze applicant financial and demographic data
+    - Build an end-to-end, production-ready ML system
 
     ### 🧠 What This System Does
     - Cleans and preprocesses real-world loan data
     - Performs Exploratory Data Analysis (EDA)
-    - Converts categorical data into numerical format
-    - Analyzes feature relationships using correlation
-    - Trains multiple ML classification models
-    - Evaluates models using business-centric metrics
-    - Improves performance via feature engineering
-
-    ### 🏦 Business Importance
-    In loan approval systems, **Precision is prioritized** because:
-    - False Positives = approving risky applicants
-    - Directly increases default risk
+    - Encodes categorical variables correctly
+    - Analyzes correlations between features
+    - Trains and compares multiple ML models
+    - Improves performance using feature engineering
+    - Allows real-time prediction using user input
     """)
 
 # =========================================================
@@ -181,20 +186,16 @@ if section == "Project Overview":
 # =========================================================
 elif section == "Dataset Overview":
     st.title("📂 Dataset Overview")
-
-    st.subheader("Sample Records")
     st.dataframe(df.head())
-
     st.subheader("Missing Values")
     st.dataframe(df.isnull().sum())
 
 # =========================================================
-# EXPLORATORY DATA ANALYSIS
+# EDA
 # =========================================================
 elif section == "Exploratory Data Analysis":
     st.title("📊 Exploratory Data Analysis")
 
-    # Pie Chart
     st.subheader("Loan Approval Distribution")
     fig, ax = plt.subplots()
     df["Loan_Approved"].value_counts().plot.pie(
@@ -205,21 +206,12 @@ elif section == "Exploratory Data Analysis":
     ax.set_ylabel("")
     st.pyplot(fig)
 
-    # Bar Chart
-    st.subheader("Gender & Education Distribution")
-    fig, ax = plt.subplots(1, 2, figsize=(12, 4))
-    sns.countplot(x="Gender", data=df, ax=ax[0])
-    sns.countplot(x="Education_Level", data=df, ax=ax[1])
-    st.pyplot(fig)
-
-    # Histograms
     st.subheader("Income Distribution")
     fig, ax = plt.subplots(1, 2, figsize=(12, 4))
     sns.histplot(df, x="Applicant_Income", bins=20, ax=ax[0])
     sns.histplot(df, x="Coapplicant_Income", bins=20, ax=ax[1])
     st.pyplot(fig)
 
-    # Box Plots
     st.subheader("Financial Features vs Loan Approval")
     fig, axes = plt.subplots(2, 2, figsize=(12, 8))
     sns.boxplot(ax=axes[0, 0], data=df, x="Loan_Approved", y="Applicant_Income")
@@ -229,18 +221,17 @@ elif section == "Exploratory Data Analysis":
     st.pyplot(fig)
 
 # =========================================================
-# CORRELATION HEATMAP
+# CORRELATION
 # =========================================================
 elif section == "Correlation Heatmap":
-    st.title("🔥 Correlation Analysis")
-
+    st.title("🔥 Correlation Heatmap")
     corr = df_proc.corr()
 
     fig, ax = plt.subplots(figsize=(14, 7))
     sns.heatmap(corr, cmap="coolwarm", annot=False)
     st.pyplot(fig)
 
-    st.subheader("Top Correlated Features with Loan Approval")
+    st.subheader("Correlation with Loan Approval")
     st.dataframe(corr["Loan_Approved"].sort_values(ascending=False))
 
 # =========================================================
@@ -280,8 +271,7 @@ elif section == "Model Training & Evaluation":
             "F1 Score": f1_score(y_test, y_pred)
         })
 
-    results_df = pd.DataFrame(results)
-    st.dataframe(results_df)
+    st.dataframe(pd.DataFrame(results))
 
 # =========================================================
 # FEATURE ENGINEERING
@@ -311,3 +301,68 @@ elif section == "Feature Engineering & Comparison":
     st.metric("Precision", round(precision_score(y_test, y_pred), 3))
     st.metric("Recall", round(recall_score(y_test, y_pred), 3))
     st.metric("F1 Score", round(f1_score(y_test, y_pred), 3))
+
+# =========================================================
+# USER INPUT PREDICTION
+# =========================================================
+elif section == "Loan Approval Prediction (User Input)":
+    st.title("🧾 Loan Approval Prediction")
+
+    with st.form("loan_form"):
+        age = st.number_input("Age", 18, 70, 30)
+        applicant_income = st.number_input("Applicant Income", 1000, 200000, 50000)
+        coapp_income = st.number_input("Coapplicant Income", 0, 100000, 0)
+        loan_amount = st.number_input("Loan Amount", 1000, 500000, 150000)
+        credit_score = st.number_input("Credit Score", 300, 900, 700)
+        dti_ratio = st.slider("DTI Ratio", 0.0, 1.0, 0.3)
+        savings = st.number_input("Savings", 0, 1000000, 20000)
+
+        education = st.selectbox("Education Level", ["Graduate", "Not Graduate"])
+        gender = st.selectbox("Gender", ["Male", "Female"])
+        marital = st.selectbox("Marital Status", ["Single", "Married"])
+        employment = st.selectbox("Employment Status", ["Salaried", "Self-Employed"])
+        property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
+        loan_purpose = st.selectbox("Loan Purpose", ["Home", "Education", "Business"])
+        employer_category = st.selectbox("Employer Category", ["Private", "Government"])
+
+        submit = st.form_submit_button("Predict")
+
+    if submit:
+        input_data = pd.DataFrame([{
+            "Age": age,
+            "Applicant_Income": applicant_income,
+            "Coapplicant_Income": coapp_income,
+            "Loan_Amount": loan_amount,
+            "Credit_Score": credit_score,
+            "DTI_Ratio": dti_ratio,
+            "Savings": savings,
+            "Education_Level": education,
+            "Gender": gender,
+            "Marital_Status": marital,
+            "Employment_Status": employment,
+            "Property_Area": property_area,
+            "Loan_Purpose": loan_purpose,
+            "Employer_Category": employer_category
+        }])
+
+        input_data["Education_Level"] = le.transform(input_data["Education_Level"])
+        encoded_input = ohe.transform(input_data[ohe_cols])
+
+        encoded_input_df = pd.DataFrame(
+            encoded_input,
+            columns=ohe.get_feature_names_out(ohe_cols)
+        )
+
+        input_data = pd.concat(
+            [input_data.drop(columns=ohe_cols), encoded_input_df],
+            axis=1
+        )
+
+        input_scaled = scaler_final.transform(input_data)
+        prediction = final_model.predict(input_scaled)[0]
+        prob = final_model.predict_proba(input_scaled)[0][1]
+
+        if prediction == 1:
+            st.success(f"✅ Loan Approved (Confidence: {prob:.2f})")
+        else:
+            st.error(f"❌ Loan Rejected (Confidence: {1-prob:.2f})")
