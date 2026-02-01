@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -5,217 +6,259 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-# -----------------------------------
+# =========================================================
 # PAGE CONFIG
-# -----------------------------------
+# =========================================================
 st.set_page_config(
-    page_title="CreditWise Loan Approval System",
+    page_title="CreditWise – Loan Approval Prediction",
     layout="wide"
 )
 
-# -----------------------------------
-# TITLE
-# -----------------------------------
 st.title("🏦 CreditWise – Loan Approval Prediction System")
 
-# -----------------------------------
-# PROJECT INFORMATION
-# -----------------------------------
-with st.expander("📌 Project Overview", expanded=True):
-    st.markdown("""
-    **Project Name:** CreditWise – Loan Approval System  
+# =========================================================
+# FIXED SCHEMA (DO NOT CHANGE)
+# =========================================================
+FEATURE_COLUMNS = [
+    'Applicant_Income',
+    'Coapplicant_Income',
+    'Age',
+    'Dependents',
+    'Credit_Score',
+    'Existing_Loans',
+    'DTI_Ratio',
+    'Savings',
+    'Collateral_Value',
+    'Loan_Amount',
+    'Loan_Term',
+    'Education_Level',
 
-    **Problem Statement:**  
-    Financial institutions receive thousands of loan applications daily.  
-    Manual verification is time-consuming, error-prone, and inconsistent.  
-    This project aims to automate loan approval decisions using Machine Learning.
+    'Employment_Status_Salaried',
+    'Employment_Status_Self-employed',
+    'Employment_Status_Unemployed',
 
-    **Aim:**  
-    To predict whether a loan application should be **Approved (Y)** or **Rejected (N)** based on applicant details.
+    'Marital_Status_Single',
 
-    **Target Variable:**  
-    `Loan_Status`
+    'Loan_Purpose_Car',
+    'Loan_Purpose_Education',
+    'Loan_Purpose_Home',
+    'Loan_Purpose_Personal',
 
-    **Tech Stack:**  
-    - Python  
-    - Pandas, NumPy  
-    - Matplotlib, Seaborn  
-    - Scikit-learn  
-    - Streamlit
-    """)
+    'Property_Area_Semiurban',
+    'Property_Area_Urban',
 
-# -----------------------------------
-# LOAD DATA
-# -----------------------------------
+    'Gender_Male',
+
+    'Employer_Category_Government',
+    'Employer_Category_MNC',
+    'Employer_Category_Private',
+    'Employer_Category_Unemployed',
+
+    'DTI_Ratio_sq',
+    'Credit_Score_sq'
+]
+
+TARGET_COLUMN = "Loan_Approved"
+EXPECTED_COLUMNS = set(FEATURE_COLUMNS + [TARGET_COLUMN])
+
+# =========================================================
+# LOAD DATA (STREAMLIT CLOUD SAFE)
+# =========================================================
 @st.cache_data
 def load_data():
-    return pd.read_csv("loan_data.csv")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base_dir, "loan_data.csv")
+    return pd.read_csv(path)
 
 df = load_data()
 
-# -----------------------------------
+# =========================================================
+# STRICT SCHEMA VALIDATION
+# =========================================================
+missing_cols = EXPECTED_COLUMNS - set(df.columns)
+extra_cols = set(df.columns) - EXPECTED_COLUMNS
+
+if missing_cols:
+    st.error(f"❌ Missing required columns: {missing_cols}")
+    st.stop()
+
+if extra_cols:
+    st.warning(f"⚠️ Extra columns detected (ignored): {extra_cols}")
+
+# =========================================================
+# PROJECT OVERVIEW
+# =========================================================
+with st.expander("📌 Project Overview", expanded=True):
+    st.markdown("""
+**Project Name:** CreditWise – Loan Approval Prediction System  
+
+**Problem Statement:**  
+Manual loan approval is slow and prone to risk. Financial institutions need
+data-driven systems to minimize defaults and ensure consistency.
+
+**Aim:**  
+To predict whether a loan application should be **Approved (1)** or
+**Rejected (0)** using financial, demographic, and behavioral features.
+
+**Target Variable:** `Loan_Approved`
+
+**Key Focus:**  
+- Risk reduction  
+- Precision-oriented decision making  
+- Production-safe deployment
+""")
+
+# =========================================================
 # DATA PREVIEW
-# -----------------------------------
+# =========================================================
 st.subheader("📄 Dataset Preview")
 st.dataframe(df.head())
 
-# -----------------------------------
-# EDA SECTION
-# -----------------------------------
-st.subheader("📊 Exploratory Data Analysis (EDA)")
+# =========================================================
+# EDA
+# =========================================================
+st.subheader("📊 Exploratory Data Analysis")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("**Loan Status Distribution**")
     fig, ax = plt.subplots()
-    df["Loan_Status"].value_counts().plot(kind="bar", ax=ax)
-    ax.set_xlabel("Loan Status")
+    df[TARGET_COLUMN].value_counts().plot(kind="bar", ax=ax)
+    ax.set_title("Loan Approval Distribution")
+    ax.set_xlabel("Loan Approved")
     ax.set_ylabel("Count")
     st.pyplot(fig)
 
 with col2:
-    st.markdown("**Education Level Distribution**")
     fig, ax = plt.subplots()
-    df["Education"].value_counts().plot(kind="bar", ax=ax)
-    ax.set_xlabel("Education")
-    ax.set_ylabel("Count")
+    sns.histplot(df["Credit_Score"], kde=True, ax=ax)
+    ax.set_title("Credit Score Distribution")
     st.pyplot(fig)
 
-# Histogram
-st.markdown("**Applicant Income Distribution**")
 fig, ax = plt.subplots()
-sns.histplot(df["ApplicantIncome"], kde=True, ax=ax)
+sns.boxplot(x=TARGET_COLUMN, y="DTI_Ratio", data=df, ax=ax)
+ax.set_title("DTI Ratio vs Loan Approval")
 st.pyplot(fig)
 
-# Boxplot
-st.markdown("**Applicant Income vs Loan Status**")
-fig, ax = plt.subplots()
-sns.boxplot(x="Loan_Status", y="ApplicantIncome", data=df, ax=ax)
-st.pyplot(fig)
-
-# Correlation Heatmap
-st.markdown("**Correlation Heatmap**")
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.heatmap(df.select_dtypes(include=np.number).corr(), annot=True, cmap="coolwarm", ax=ax)
+sns.heatmap(df[FEATURE_COLUMNS + [TARGET_COLUMN]].corr(), cmap="coolwarm", ax=ax)
+ax.set_title("Correlation Heatmap")
 st.pyplot(fig)
 
-# -----------------------------------
-# DATA PREPROCESSING
-# -----------------------------------
-data = df.copy()
-
-label_encoders = {}
-for col in data.select_dtypes(include="object").columns:
-    le = LabelEncoder()
-    data[col] = le.fit_transform(data[col])
-    label_encoders[col] = le
-
-X = data.drop("Loan_Status", axis=1)
-y = data["Loan_Status"]
+# =========================================================
+# TRAIN–TEST SPLIT
+# =========================================================
+X = df[FEATURE_COLUMNS].copy()
+y = df[TARGET_COLUMN].astype(int)
 
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
 X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, random_state=42
+    X_scaled,
+    y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
 )
 
-# -----------------------------------
+# =========================================================
 # MODELS
-# -----------------------------------
+# =========================================================
 models = {
-    "Logistic Regression": LogisticRegression(),
+    "Logistic Regression": LogisticRegression(max_iter=1000),
     "Decision Tree": DecisionTreeClassifier(),
     "Random Forest": RandomForestClassifier(),
     "Naive Bayes": GaussianNB()
 }
 
-results = {}
+metrics = {}
 
 for name, model in models.items():
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    results[name] = {
-        "Accuracy": accuracy_score(y_test, y_pred),
-        "Precision": precision_score(y_test, y_pred),
-        "Recall": recall_score(y_test, y_pred),
-        "F1 Score": f1_score(y_test, y_pred)
+    preds = model.predict(X_test)
+    metrics[name] = {
+        "Accuracy": accuracy_score(y_test, preds),
+        "Precision": precision_score(y_test, preds),
+        "Recall": recall_score(y_test, preds),
+        "F1 Score": f1_score(y_test, preds)
     }
 
-# -----------------------------------
+# =========================================================
 # MODEL COMPARISON
-# -----------------------------------
+# =========================================================
 st.subheader("⚖️ Model Performance Comparison")
+st.dataframe(pd.DataFrame(metrics).T)
 
-results_df = pd.DataFrame(results).T
-st.dataframe(results_df)
-
-model_choice = st.selectbox(
+selected_model_name = st.selectbox(
     "Select Model for Prediction",
     list(models.keys())
 )
+selected_model = models[selected_model_name]
 
-selected_model = models[model_choice]
+# =========================================================
+# SIDEBAR INPUT (SCHEMA-AWARE, NO RENAMING)
+# =========================================================
+st.sidebar.header("🧾 Applicant Details")
 
-# -----------------------------------
-# SIDEBAR – USER INPUT
-# -----------------------------------
-st.sidebar.header("🧾 Enter Applicant Details")
+input_data = {col: 0 for col in FEATURE_COLUMNS}
 
-user_input = {}
-for col in df.drop("Loan_Status", axis=1).columns:
-    if df[col].dtype == "object":
-        user_input[col] = st.sidebar.selectbox(col, df[col].unique())
+for col in FEATURE_COLUMNS:
+    if col.endswith("_sq"):
+        continue
+
+    if df[col].nunique() <= 2:
+        input_data[col] = st.sidebar.selectbox(col, [0, 1])
     else:
-        user_input[col] = st.sidebar.number_input(col, float(df[col].min()), float(df[col].max()))
+        input_data[col] = st.sidebar.number_input(col, value=float(df[col].median()))
 
-input_df = pd.DataFrame([user_input])
+# Derived features
+input_data["DTI_Ratio_sq"] = input_data["DTI_Ratio"] ** 2
+input_data["Credit_Score_sq"] = input_data["Credit_Score"] ** 2
 
-for col in input_df.select_dtypes(include="object").columns:
-    input_df[col] = label_encoders[col].transform(input_df[col])
-
-input_scaled = scaler.transform(input_df)
-
-# -----------------------------------
+# =========================================================
 # PREDICTION
-# -----------------------------------
-if st.sidebar.button("🔍 Predict Loan Status"):
+# =========================================================
+if st.sidebar.button("🔍 Predict Loan Approval"):
+    input_df = pd.DataFrame([input_data])[FEATURE_COLUMNS]
+    input_scaled = scaler.transform(input_df)
     prediction = selected_model.predict(input_scaled)[0]
-    result = "Approved ✅" if prediction == 1 else "Rejected ❌"
-    st.sidebar.success(f"Loan Status: {result}")
 
-# -----------------------------------
-# EXPLANATION TAB
-# -----------------------------------
-st.subheader("🧠 Explanation (Interview-Ready)")
+    if prediction == 1:
+        st.sidebar.success("✅ Loan Approved")
+    else:
+        st.sidebar.error("❌ Loan Rejected")
 
-with st.expander("Why Precision is Important?"):
+# =========================================================
+# EXPLANATION (INTERVIEW-READY)
+# =========================================================
+st.subheader("🧠 Explanation")
+
+with st.expander("Why Precision is Critical"):
     st.markdown("""
-    Precision is crucial in loan approval systems because:
-    - False positives (approving risky loans) cause **financial loss**
-    - Banks prefer **safe approvals over mass approvals**
-    """)
+In loan approval systems, false positives are expensive.
+Approving a risky applicant leads to financial loss, so
+precision is prioritized over recall.
+""")
 
-with st.expander("Why Multiple Models?"):
+with st.expander("Why Fixed Schema is Mandatory"):
     st.markdown("""
-    - Logistic Regression → Baseline, interpretable
-    - Decision Tree → Rule-based decisions
-    - Random Forest → Handles non-linearity & reduces overfitting
-    - Naive Bayes → Fast, probabilistic
-    """)
+The model was trained on a fixed, feature-engineered dataset.
+Enforcing the same schema during inference prevents
+training–serving skew and ensures reliable predictions.
+""")
 
-with st.expander("Real-World Use Case"):
+with st.expander("Real-World Applicability"):
     st.markdown("""
-    This system can be integrated into:
-    - Bank loan portals
-    - NBFC risk engines
-    - FinTech credit scoring pipelines
-    """)
+This system can be deployed in:
+- Bank loan processing pipelines  
+- FinTech credit scoring engines  
+- Automated risk assessment systems
+""")
