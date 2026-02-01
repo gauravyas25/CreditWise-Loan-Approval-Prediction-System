@@ -145,21 +145,46 @@ X = df[FEATURE_COLUMNS].copy()
 # =========================================================
 y_raw = df[TARGET_COLUMN]
 
+# =========================================================
+# TARGET ENCODING (ULTRA-ROBUST, REAL-WORLD SAFE)
+# =========================================================
+y_raw = df[TARGET_COLUMN]
+
+# Normalize strings safely WITHOUT changing column name
 if y_raw.dtype == "object":
-    y = y_raw.map({
-        "Yes": 1,
-        "No": 0,
-        "Y": 1,
-        "N": 0,
-        True: 1,
-        False: 0
+    y_norm = (
+        y_raw
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    y = y_norm.map({
+        "yes": 1,
+        "y": 1,
+        "approved": 1,
+        "Approved": 1,
+        "approve": 1,
+        "true": 1,
+        "1": 1,
+
+        "no": 0,
+        "n": 0,
+        "rejected": 0,
+        "Rejected": 0,
+        "reject": 0,
+        "false": 0,
+        "0": 0
     })
 else:
     y = y_raw
 
-# Safety check
+# Final safety check
 if y.isna().any():
-    st.error("❌ Target column contains unmapped values.")
+    st.error(
+        f"❌ Unrecognized values in {TARGET_COLUMN}: "
+        f"{set(y_raw.unique())}"
+    )
     st.stop()
 
 y = y.astype(int)
