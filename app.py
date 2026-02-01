@@ -106,6 +106,11 @@ X_final_scaled = scaler_final.fit_transform(X_final)
 final_model = LogisticRegression()
 final_model.fit(X_final_scaled, y_final)
 
+coef_df = pd.DataFrame({
+    "Feature": feature_order,
+    "Coefficient": final_model.coef_[0]
+}).sort_values(by="Coefficient", ascending=False)
+
 # =========================================================
 # PROJECT OVERVIEW
 # =========================================================
@@ -113,15 +118,15 @@ if section == "Project Overview":
     st.title("💳 CreditWise – Loan Approval Prediction System")
     st.markdown("""
     **Problem Statement:**  
-    Manual loan approval is slow, biased, and inconsistent.
+    Manual loan approval systems are slow, inconsistent, and biased.
 
     **Goals:**  
-    - Automate loan approval using ML  
+    - Automate loan approval decisions  
     - Reduce default risk  
-    - Improve decision consistency  
+    - Improve consistency and transparency  
 
     **Pipeline:**  
-    Data Cleaning → EDA → Encoding → Modeling → Prediction
+    Data Cleaning → EDA → Encoding → Modeling → Prediction → Explanation
     """)
 
 # =========================================================
@@ -228,7 +233,7 @@ elif section == "Feature Engineering & Comparison":
     st.metric("F1 Score", round(f1_score(y_test, y_pred), 3))
 
 # =========================================================
-# USER INPUT PREDICTION
+# USER INPUT + EXPLANATION
 # =========================================================
 elif section == "Loan Approval Prediction (User Input)":
     st.title("🧾 Loan Approval Prediction")
@@ -293,3 +298,13 @@ elif section == "Loan Approval Prediction (User Input)":
             st.success(f"✅ Loan Approved (Confidence: {prob:.2f})")
         else:
             st.error(f"❌ Loan Rejected (Confidence: {1 - prob:.2f})")
+
+        st.subheader("📌 Key Factors Influencing Decision")
+        contribution = coef_df.copy()
+        contribution["Impact"] = contribution["Coefficient"] * input_scaled[0]
+        contribution = contribution.sort_values(
+            by="Impact",
+            ascending=(pred == 0)
+        ).head(5)
+
+        st.dataframe(contribution[["Feature", "Impact"]])
