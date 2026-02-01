@@ -38,344 +38,244 @@
 #
 
 # %%
+import streamlit as st
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder, StandardScaler
-from sklearn.metrics import confusion_matrix, f1_score, accuracy_score, recall_score, precision_score
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
-# %%
-df = pd.read_csv("loan_data.csv")
-df.head()
+# --------------------------------------------------
+# Page Configuration
+# --------------------------------------------------
+st.set_page_config(
+    page_title="CreditWise – Loan Approval Prediction",
+    layout="wide"
+)
 
-# %%
-df.info()
+# --------------------------------------------------
+# Sidebar
+# --------------------------------------------------
+st.sidebar.title("📊 CreditWise Navigation")
 
-# %%
-df.isnull().sum()
+section = st.sidebar.radio(
+    "Go to Section:",
+    [
+        "Project Overview",
+        "Dataset Overview",
+        "Exploratory Data Analysis",
+        "Correlation Analysis",
+        "Model Training & Evaluation",
+        "Feature Engineering & Comparison"
+    ]
+)
 
-# %% [markdown]
-# # Data Handling
-# 1. Entire dataset contains 2 types of values
-#     - Categorical Data : referred to as "objects". Eg : Gender, Property_Area, Employer_Category
-#     - Numerical Data : referred to as "float64". Eg : Age, Loan_Amount, etc
-# 2. Now to fill missing values in these data types, we will use statistical methods
-# 3. For Categorical Data, we will use Mode : which will use the more no. of entries to fill the missing values
-#     - If no. of males are more than females, Male will be  used to fill the missing values
-# 3. For Numerical Data, we will use Mean : Calculate the mean of entire column/feature and fill in missing values
+st.sidebar.markdown("---")
+st.sidebar.info(
+    """
+    **Developed By:** Gaurav Vyas  
+    **Tech Stack:** Python, Pandas, NumPy, Seaborn, Scikit-Learn, Streamlit  
+    **Domain:** Finance / Banking / Risk Analytics
+    """
+)
 
-# %%
-categorical_cols = df.select_dtypes(include=["object"]).columns
-numerical_cols = df.select_dtypes(include=["number"]).columns
-numerical_cols
+# --------------------------------------------------
+# Load Data
+# --------------------------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv("loan_data.csv")
 
-# %%
+df = load_data()
+
+# --------------------------------------------------
+# Project Overview
+# --------------------------------------------------
+if section == "Project Overview":
+    st.title("💳 CreditWise – Loan Approval Prediction System")
+
+    st.markdown("""
+    ### 🔍 Problem Statement
+    Loan approval is a high-risk, high-impact decision in the banking domain.
+    Traditional manual evaluation is:
+    - Time-consuming  
+    - Prone to bias  
+    - Inconsistent across applicants  
+
+    **CreditWise** introduces a **data-driven ML approach** to predict loan approval
+    using applicant demographics, financial metrics, and credit history.
+    """)
+
+    st.markdown("""
+    ### 🎯 Objectives
+    - Clean and preprocess real-world financial data
+    - Perform deep Exploratory Data Analysis (EDA)
+    - Encode categorical features correctly
+    - Analyze feature relationships using correlation
+    - Train and compare multiple ML models
+    - Improve performance via feature engineering
+    """)
+
+# --------------------------------------------------
+# Dataset Overview
+# --------------------------------------------------
+elif section == "Dataset Overview":
+    st.title("📂 Dataset Overview")
+
+    st.subheader("Raw Dataset")
+    st.dataframe(df.head())
+
+    st.subheader("Dataset Information")
+    st.write(df.info())
+
+    st.subheader("Missing Values")
+    st.dataframe(df.isnull().sum())
+
+# --------------------------------------------------
+# Data Preprocessing
+# --------------------------------------------------
+df_proc = df.copy()
+
+categorical_cols = df_proc.select_dtypes(include="object").columns
+numerical_cols = df_proc.select_dtypes(include="number").columns
+
 num_imp = SimpleImputer(strategy="mean")
-df[numerical_cols] = num_imp.fit_transform(df [numerical_cols])
+df_proc[numerical_cols] = num_imp.fit_transform(df_proc[numerical_cols])
 
-# %%
 cat_imp = SimpleImputer(strategy="most_frequent")
-df [categorical_cols] = cat_imp. fit_transform(df [categorical_cols])
+df_proc[categorical_cols] = cat_imp.fit_transform(df_proc[categorical_cols])
 
-# %%
-df.head()
+df_proc.drop("Applicant_ID", axis=1, inplace=True)
 
-# %%
-df.isnull().sum()
-
-# %% [markdown]
-# # Exploratory Data Analysis
-
-# %%
-classes_count = df ["Loan_Approved"].value_counts()
-
-plt.pie(classes_count, labels=["No", "Yes"], autopct="%1.1f%%")
-plt.title("Is Loan approved or not?")
-
-# %% [markdown]
-# This pie chart shows us a distribution of percentage of loans approved and not approved
-# Only around 30% of loan applications were approved
-
-# %%
-gender_cnt = df ["Gender"] .value_counts()
-ax = sns.barplot(gender_cnt)
-ax.bar_label(ax.containers[0])
-
-edu_cnt = df ["Education_Level"].value_counts()
-ax = sns.barplot(edu_cnt)
-ax.bar_label(ax.containers[1])
-
-# %% [markdown]
-# This bar graph shows us the different categories that put up a loan applicaiton 
-
-# %%
-sns.histplot(
-    data = df,
-    x = "Applicant_Income",
-    bins=20
-)
-
-# %%
-sns.histplot(
-    data = df,
-    x = "Coapplicant_Income",
-    bins=20
-)
-
-# %%
-fig, axes = plt.subplots(2,2)
-
-sns.boxplot(ax=axes [0, 0], data=df, x="Loan_Approved", y="Applicant_Income")
-sns.boxplot(ax=axes [0, 1], data=df, x="Loan_Approved", y="Credit_Score")
-sns.boxplot(ax=axes [1, 0], data=df, x="Loan_Approved", y="DTI_Ratio")
-sns.boxplot(ax=axes [1, 1], data=df, x="Loan_Approved", y="Savings")
-
-
-
-plt.tight_layout()
-
-# %%
-sns.histplot(
-    data=df,
-    x="Credit_Score",
-    hue="Loan_Approved",
-    bins=20,
-    multiple="dodge"
-)
-
-# %%
-df = df.drop("Applicant_ID", axis=1)
-
-# %% [markdown]
-# # Encoding Data
-# 1. Label Encoding : Converts categorical data into numerical data within the data column itself
-#     - Consider Example, Gender column has M & F values, it will assign M = 0, F = 1 or vice-versa
-#     - This encoding is used only when we are working on Ordinal Data which tells us an order or ranking via numbers. If Male = 1 and Female = 0, then male is superior than female 
-#
-#   
-# 2. One Hot Encoding : Creates two seperate columns for Male and Female values like Gender_Male, Gender_Female
-#     - Used only on Nominal Data which has no order or ranking in data
-
-# %%
 le = LabelEncoder()
-df ["Education_Level"] = le. fit_transform(df["Education_Level"])
-df ["Loan_Approved"] = le.fit_transform(df["Loan_Approved"])
+df_proc["Education_Level"] = le.fit_transform(df_proc["Education_Level"])
+df_proc["Loan_Approved"] = le.fit_transform(df_proc["Loan_Approved"])
 
-# %%
-cols = ["Employment_Status", "Marital_Status", "Loan_Purpose", "Property_Area", "Gender", "Employer_Category"]
-ohe = OneHotEncoder(drop="first", sparse_output=False, handle_unknown="ignore")
-encoded = ohe.fit_transform(df[cols])
+ohe_cols = ["Employment_Status", "Marital_Status", "Loan_Purpose", "Property_Area", "Gender", "Employer_Category"]
+ohe = OneHotEncoder(drop="first", sparse_output=False)
 
-encoded_df = pd.DataFrame(encoded, columns = ohe.get_feature_names_out(cols), index = df.index)
+encoded = ohe.fit_transform(df_proc[ohe_cols])
+encoded_df = pd.DataFrame(encoded, columns=ohe.get_feature_names_out(ohe_cols))
 
-# %%
-df = pd.concat([df.drop(columns = cols), encoded_df], axis=1)
+df_proc = pd.concat([df_proc.drop(columns=ohe_cols), encoded_df], axis=1)
 
-# %%
-df.columns
+# --------------------------------------------------
+# EDA
+# --------------------------------------------------
+elif section == "Exploratory Data Analysis":
+    st.title("📈 Exploratory Data Analysis")
 
-# %% [markdown]
-# # Correlation Heatmap
+    st.subheader("Loan Approval Distribution")
+    fig, ax = plt.subplots()
+    df["Loan_Approved"].value_counts().plot.pie(
+        autopct="%1.1f%%",
+        labels=["Approved", "Rejected"],
+        ax=ax
+    )
+    ax.set_ylabel("")
+    st.pyplot(fig)
 
-# %%
-num_cols = df.select_dtypes(include="number")
-corr_matrix = num_cols. corr()
+    st.subheader("Applicant Income Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df, x="Applicant_Income", bins=20, ax=ax)
+    st.pyplot(fig)
 
-num_cols.corr()["Loan_Approved"].sort_values(ascending=False)
+    st.subheader("Credit Score vs Loan Approval")
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, x="Loan_Approved", y="Credit_Score", ax=ax)
+    st.pyplot(fig)
 
-# %%
-plt.figure(figsize=(15, 8))
-sns.heatmap(
-    corr_matrix,
-    annot=True,
-    fmt=".2f",
-    cmap="coolwarm"
-)
+# --------------------------------------------------
+# Correlation Analysis
+# --------------------------------------------------
+elif section == "Correlation Analysis":
+    st.title("🔥 Correlation Heatmap")
 
-# %% [markdown]
-# # Training & Testing
+    corr = df_proc.corr()
 
-# %%
-X = df.drop("Loan_Approved", axis=1)
-y = df["Loan_Approved"]
+    fig, ax = plt.subplots(figsize=(14, 7))
+    sns.heatmap(corr, cmap="coolwarm", annot=False, ax=ax)
+    st.pyplot(fig)
 
-# %%
-X.head()
+    st.subheader("Top Correlated Features with Loan Approval")
+    st.dataframe(
+        corr["Loan_Approved"].sort_values(ascending=False)
+    )
 
-# %%
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# --------------------------------------------------
+# Model Training
+# --------------------------------------------------
+elif section == "Model Training & Evaluation":
+    st.title("🤖 Model Training & Evaluation")
 
-# %%
-X_train.head()
+    X = df_proc.drop("Loan_Approved", axis=1)
+    y = df_proc["Loan_Approved"]
 
-# %%
-scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-# %% [markdown]
-# # Logistic Regression
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
-# %%
-log_model = LogisticRegression()
-log_model.fit(X_train_scaled, y_train)
+    models = {
+        "Logistic Regression": LogisticRegression(),
+        "KNN": KNeighborsClassifier(n_neighbors=5),
+        "Naive Bayes": GaussianNB()
+    }
 
-y_pred = log_model.predict(X_test_scaled)
+    results = []
 
-# Evaluation
-print("Logistic Regression Model")
-print("Precision: ", precision_score(y_test, y_pred))
-print("Recall: ", recall_score(y_test, y_pred))
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
 
-print("F1 score: ", f1_score(y_test, y_pred))
-print("Accuracy: ", accuracy_score(y_test, y_pred))
-print("CM: ", confusion_matrix(y_test, y_pred))
+        results.append({
+            "Model": name,
+            "Accuracy": accuracy_score(y_test, y_pred),
+            "Precision": precision_score(y_test, y_pred),
+            "Recall": recall_score(y_test, y_pred),
+            "F1 Score": f1_score(y_test, y_pred)
+        })
 
-# %% [markdown]
-# # k - Nearest Neighbors
+    results_df = pd.DataFrame(results)
+    st.dataframe(results_df)
 
-# %%
-knn_model = KNeighborsClassifier(n_neighbors=5)
-knn_model.fit(X_train_scaled, y_train)
+# --------------------------------------------------
+# Feature Engineering
+# --------------------------------------------------
+elif section == "Feature Engineering & Comparison":
+    st.title("🧠 Feature Engineering Impact")
 
-y_pred = knn_model.predict(X_test_scaled)
+    df_fe = df_proc.copy()
+    df_fe["DTI_Ratio_sq"] = df_fe["DTI_Ratio"] ** 2
+    df_fe["Credit_Score_sq"] = df_fe["Credit_Score"] ** 2
 
-# Evaluation
-print("KNN Model")
-print("Precision: ", precision_score(y_test, y_pred))
-print("Recall: ", recall_score(y_test, y_pred))
-print("F1 score: ", f1_score(y_test, y_pred))
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("CM: ", confusion_matrix(y_test, y_pred))
+    X = df_fe.drop(["Loan_Approved", "DTI_Ratio", "Credit_Score"], axis=1)
+    y = df_fe["Loan_Approved"]
 
-# %% [markdown]
-# # Naive Bayes Model
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
 
-# %%
-nb_model = GaussianNB()
-nb_model.fit(X_train_scaled, y_train)
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
 
-y_pred = nb_model.predict(X_test_scaled)
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
 
-# Evaluation
-print("Naive Bayes Model")
-print("Precision: ", precision_score(y_test, y_pred))
-print("Recall: ", recall_score(y_test, y_pred))
-print("F1 score: ", f1_score(y_test, y_pred))
-print("Accuracy: ", accuracy_score(y_test, y_pred))
-print("CM: ", confusion_matrix(y_test, y_pred))
-
-# %% [markdown]
-# # Fearure Engineering to Improve Models Performance
-
-# %%
-df["DTI_Ratio_sq"] = df ["DTI_Ratio"] ** 2
-df["Credit_Score_sq"] = df["Credit_Score"] ** 2
-
-
-X = df.drop(columns=["Loan_Approved", "Credit_Score", "DTI_Ratio"])
-y = df ["Loan_Approved"]
-
-# Train test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Scaling
-scaler = StandardScaler()
-
-X_train_scaled = scaler.fit_transform(X_train)
-X_test_scaled = scaler.transform(X_test)
-
-# %%
-log_model = LogisticRegression()
-log_model.fit(X_train_scaled, y_train)
-
-y_pred = log_model.predict(X_test_scaled)
-
-# Evaluation
-print("Logistic Regression Model")
-lr_precision = precision_score(y_test, y_pred)
-lr_recall = recall_score(y_test, y_pred)
-lr_f1 = f1_score(y_test, y_pred)
-lr_accuracy = accuracy_score(y_test, y_pred)
-print("CM: ", confusion_matrix(y_test, y_pred))
-
-# %%
-knn_model = KNeighborsClassifier(n_neighbors=5)
-knn_model.fit(X_train_scaled, y_train)
-
-y_pred = knn_model.predict(X_test_scaled)
-
-# Evaluation
-print("KNN Model")
-knn_precision = precision_score(y_test, y_pred)
-knn_recall = recall_score(y_test, y_pred)
-knn_f1 = f1_score(y_test, y_pred)
-knn_accuracy = accuracy_score(y_test, y_pred)
-print("CM: ", confusion_matrix(y_test, y_pred))
-
-# %%
-nb_model = GaussianNB()
-nb_model.fit(X_train_scaled, y_train)
-
-y_pred = nb_model.predict(X_test_scaled)
-
-# Evaluation
-print("Naive Bayes Model")
-nb_precision = precision_score(y_test, y_pred)
-nb_recall = recall_score(y_test, y_pred)
-nb_f1 = f1_score(y_test, y_pred)
-nb_accuracy = accuracy_score(y_test, y_pred)
-print("CM: ", confusion_matrix(y_test, y_pred))
-
-# %%
-performance_df = pd.DataFrame({
-    "Model": ["Logistic Regression", "KNN", "Naive Bayes"],
-    "Accuracy": [lr_accuracy, knn_accuracy, nb_accuracy],
-    "Precision": [lr_precision, knn_precision, nb_precision],
-    "Recall": [lr_recall, knn_recall, nb_recall],
-    "F1 Score": [lr_f1, knn_f1, nb_f1]
-})
-
-performance_df
-
-# %%
-plt.figure()
-plt.bar(performance_df["Model"], performance_df["Accuracy"])
-plt.title("Model Accuracy Comparison")
-plt.xlabel("Model")
-plt.ylabel("Accuracy")
-plt.show()
-
-# %%
-plt.figure()
-plt.bar(performance_df["Model"], performance_df["Precision"])
-plt.title("Model Precision Comparison")
-plt.xlabel("Model")
-plt.ylabel("Precision")
-plt.show()
-
-# %%
-plt.figure()
-plt.bar(performance_df["Model"], performance_df["Recall"])
-plt.title("Model Recall Comparison")
-plt.xlabel("Model")
-plt.ylabel("Recall")
-plt.show()
-
-
-# %%
-plt.figure()
-plt.bar(performance_df["Model"], performance_df["F1 Score"])
-plt.title("Model F1-Score Comparison")
-plt.xlabel("Model")
-plt.ylabel("F1 Score")
-plt.show()
+    st.metric("Improved F1 Score", round(f1_score(y_test, y_pred), 3))
+    st.metric("Improved Precision", round(precision_score(y_test, y_pred), 3))
 
 # %%
 
