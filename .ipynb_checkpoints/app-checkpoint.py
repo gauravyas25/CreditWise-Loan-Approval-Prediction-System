@@ -33,8 +33,8 @@ section = st.sidebar.radio(
         "Exploratory Data Analysis",
         "Correlation Heatmap",
         "Model Training & Evaluation",
-        "Feature Engineering & Comparison",
-        "Loan Approval Prediction (User Input)"
+        "Feature Engineering & Comparison"
+       # "Loan Approval Prediction (User Input)"
     ]
 )
 
