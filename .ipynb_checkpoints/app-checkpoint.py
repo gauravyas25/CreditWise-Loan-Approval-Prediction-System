@@ -123,9 +123,17 @@ sns.boxplot(x=TARGET_COLUMN, y="DTI_Ratio", data=df, ax=ax)
 ax.set_title("DTI Ratio vs Loan Approval")
 st.pyplot(fig)
 
+numeric_df = df[FEATURE_COLUMNS + [TARGET_COLUMN]].select_dtypes(
+    include=[np.number]
+)
+
 fig, ax = plt.subplots(figsize=(10, 6))
-sns.heatmap(df[FEATURE_COLUMNS + [TARGET_COLUMN]].corr(), cmap="coolwarm", ax=ax)
-ax.set_title("Correlation Heatmap")
+sns.heatmap(
+    numeric_df.corr(),
+    cmap="coolwarm",
+    ax=ax
+)
+ax.set_title("Correlation Heatmap (Numeric Features Only)")
 st.pyplot(fig)
 
 # =========================================================
