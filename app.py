@@ -148,9 +148,17 @@ y_raw = df[TARGET_COLUMN]
 # =========================================================
 # TARGET ENCODING (ULTRA-ROBUST, REAL-WORLD SAFE)
 # =========================================================
+# =========================================================
+# TARGET CLEANING & ENCODING (FINAL, CORRECT ORDER)
+# =========================================================
+
+# 1️⃣ Drop rows where target is missing (MANDATORY)
+df = df.dropna(subset=[TARGET_COLUMN]).copy()
+
+# 2️⃣ Extract target
 y_raw = df[TARGET_COLUMN]
 
-# Normalize strings safely WITHOUT changing column name
+# 3️⃣ Normalize strings safely
 if y_raw.dtype == "object":
     y_norm = (
         y_raw
@@ -161,19 +169,15 @@ if y_raw.dtype == "object":
 
     y = y_norm.map({
         "yes": 1,
-        "Yes": 1,
         "y": 1,
         "approved": 1,
-        "Approved": 1,
         "approve": 1,
         "true": 1,
         "1": 1,
 
         "no": 0,
-        "No": 0,
         "n": 0,
         "rejected": 0,
-        "Rejected": 0,
         "reject": 0,
         "false": 0,
         "0": 0
@@ -181,15 +185,16 @@ if y_raw.dtype == "object":
 else:
     y = y_raw
 
-# Final safety check
+# 4️⃣ Absolute safety check
 if y.isna().any():
     st.error(
-        f"❌ Unrecognized values in {TARGET_COLUMN}: "
-        f"{set(y_raw.unique())}"
+        f"❌ Unexpected values in {TARGET_COLUMN}: "
+        f"{set(df[TARGET_COLUMN].unique())}"
     )
     st.stop()
 
 y = y.astype(int)
+
 
 
 scaler = StandardScaler()
